@@ -17,6 +17,12 @@ namespace FreeSpaceChecker.Settings.Email
 
             return ((EmailElement)element).Email;
         }
+        [ConfigurationProperty("sendEmail", IsDefaultCollection = false)]
+        public string SendEmail
+        {
+            get { return (string)this["sendEmail"]; }
+            set { this["sendEmail"] = value; }
+        }
         [ConfigurationProperty("smtpServer", IsDefaultCollection = false)]
         public string SmtpServer
         {

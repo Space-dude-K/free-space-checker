@@ -93,9 +93,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="Settings\App - Copy.config">
-      <SubType>Designer</SubType>
-    </None>
     <None Include="Settings\App.config">
       <SubType>Designer</SubType>
     </None>

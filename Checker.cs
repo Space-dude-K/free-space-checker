@@ -17,7 +17,7 @@ namespace FreeSpaceChecker
         private IMailSender sender;
         private ISpaceChecker checker;
         private List<Comp> comps;
-        private (string smtpServer, string mailFrom) smtpSettings;
+        private (bool sendEmail, string smtpServer, string mailFrom) smtpSettings;
         private List<Mail> mails;
         RequisiteInformation requisiteInformation;
         private enum DiskSizeFormatType
@@ -43,8 +43,7 @@ namespace FreeSpaceChecker
             comps = conf.LoadCompSettings();
             smtpSettings = conf.LoadSmtpSettings();
             mails = conf.LoadMailSettings();
-            //Console.ReadLine();
-            PerfomCheck();
+            PerfomCheck(smtpSettings.sendEmail);
         }
         private void CheckRequisites((string admLogin, string loginSalt, string admPass, string passSalt) req, Configurator conf)
         {
@@ -56,16 +55,23 @@ namespace FreeSpaceChecker
                 {
                     var loginAdnPass = (Console.ReadLine().Split());
 
-                    (string admLogin, string admPass) newReq = (loginAdnPass[0], loginAdnPass[1]);
-                    Console.WriteLine("Raw: " + newReq.admLogin + " " + newReq.admPass);
+                    if(loginAdnPass.Length != 2 || string.IsNullOrEmpty(loginAdnPass[0]) || string.IsNullOrEmpty(loginAdnPass[1]))
+                    {
+                        Console.WriteLine("Ошибка ввода. Введите логин и пароль через пробел: ");
+                        continue;
+                    }
+                    else
+                    {
+                        (string admLogin, string admPass) newReq = (loginAdnPass[0], loginAdnPass[1]);
 
-                    var enc = encryptor.Encrypt(encryptor.ToSecureString(loginAdnPass[0]), encryptor.ToSecureString(loginAdnPass[1]));
-                    requisiteInformation = enc;
-                    newReq.admLogin = encryptor.ToInsecureString(enc.User);
-                    newReq.admPass = encryptor.ToInsecureString(enc.Password);
-                    Console.WriteLine("Enc: " + newReq.admLogin + " " + newReq.admPass);
+                        var enc = encryptor.Encrypt(encryptor.ToSecureString(loginAdnPass[0]), encryptor.ToSecureString(loginAdnPass[1]));
+                        requisiteInformation = enc;
+                        newReq.admLogin = encryptor.ToInsecureString(enc.User);
+                        newReq.admPass = encryptor.ToInsecureString(enc.Password);
+                        Console.WriteLine("Enc: " + newReq.admLogin + " " + newReq.admPass);
 
-                    conf.SaveAdminSettings((encryptor.ToInsecureString(enc.User), enc.USalt, encryptor.ToInsecureString(enc.Password), enc.PSalt));
+                        conf.SaveAdminSettings((encryptor.ToInsecureString(enc.User), enc.USalt, encryptor.ToInsecureString(enc.Password), enc.PSalt));
+                    }
 
                     if (Console.ReadKey().Key == ConsoleKey.Enter)
                         break;
@@ -75,27 +81,20 @@ namespace FreeSpaceChecker
             {
                 Console.WriteLine("Login and password - OK");
 
-                requisiteInformation = new RequisiteInformation(encryptor.ToSecureString(req.admLogin), req.loginSalt, encryptor.ToSecureString(req.admPass), req.passSalt);
-
-                //var dec = encryptor.Decrypt(encryptor.ToSecureString(req.admLogin), req.loginSalt, encryptor.ToSecureString(req.admPass), req.passSalt);
-                //Console.WriteLine("Dec req: " + encryptor.ToInsecureString(dec.User) + " Pass: " + encryptor.ToInsecureString(dec.Password));
+                requisiteInformation = 
+                    new RequisiteInformation(encryptor.ToSecureString(req.admLogin), req.loginSalt, encryptor.ToSecureString(req.admPass), req.passSalt);
             }
         }
         /// <summary>
         /// Запуск проверки
         /// </summary>
-        public void PerfomCheck()
+        public void PerfomCheck(bool sendMail = true)
         {
             int lowSpaceAndAvailabilityCounter = 0;
 
             ServerAvailabilityChecker sac = new ServerAvailabilityChecker();
 
             logger.Log("Perfoming daily checking.");
-
-            //var dec = encryptor.Decrypt(requisiteInformation.User, requisiteInformation.USalt, requisiteInformation.Password, requisiteInformation.PSalt);
-            //Console.WriteLine("Dec req: " + encryptor.ToInsecureString(dec.User) + " Pass: " + encryptor.ToInsecureString(dec.Password));
-            //Console.ReadLine();
-
 
             List<Tuple<bool, string, string, string, string, string>> msgBlob = new List<Tuple<bool, string, string, string, string, string>>();
 
@@ -109,7 +108,8 @@ namespace FreeSpaceChecker
                     foreach (Tuple<string, ulong> diskAndTreshold in GetDiskAndTreshold(comp.Disks))
                     {
                         string drive = diskAndTreshold.Item1;
-                        Tuple<ulong, ulong> freeAndTotalSpace = checker.CheckSpace(comp.Ip, drive, logger, requisiteInformation, encryptor, drive.Contains("=") ? true : false);
+                        Tuple<ulong, ulong> freeAndTotalSpace = checker.CheckSpace(comp.Ip, 
+                            drive, logger, requisiteInformation, encryptor, drive.Contains("=") ? true : false);
                         ulong treshold = diskAndTreshold.Item2;
                         string formTreshold = FormatSizeBytes(treshold);
                         ulong space = freeAndTotalSpace.Item1;
@@ -125,7 +125,8 @@ namespace FreeSpaceChecker
                                 + " Treshold: " + formTreshold.PadLeft(8)
                                 + " << Server unavailable!");
 
-                            msgBlob.Add(new Tuple<bool, string, string, string, string, string>(serverAvailability, comp.Ip, drive, "NO RESPONSE", "NO RESPONSE", formTreshold));
+                            msgBlob.Add(new Tuple<bool, string, string, string, string, string>(serverAvailability, 
+                                comp.Ip, drive, "NO RESPONSE", "NO RESPONSE", formTreshold));
                         }
                         else if (treshold > space)
                         {
@@ -135,7 +136,8 @@ namespace FreeSpaceChecker
                                 + " Treshold: " + formTreshold.PadLeft(8)
                                 + " << Low space!");
 
-                            msgBlob.Add(new Tuple<bool, string, string, string, string, string>(serverAvailability, comp.Ip, drive, size, freeSpaceProcentage, formTreshold));
+                            msgBlob.Add(new Tuple<bool, string, string, string, string, string>(serverAvailability, 
+                                comp.Ip, drive, size, freeSpaceProcentage, formTreshold));
 
                             lowSpaceAndAvailabilityCounter++;
                         }
@@ -157,7 +159,8 @@ namespace FreeSpaceChecker
                                 + " Free %: " + "NONE".PadLeft(6)
                                 + " Treshold: " + "NONE".PadRight(9)
                                 + " << OFFLINE!");
-                    msgBlob.Add(new Tuple<bool, string, string, string, string, string>(serverAvailability, comp.Ip, "OFFLINE", "OFFLINE", "OFFLINE", "OFFLINE"));
+                    msgBlob.Add(new Tuple<bool, string, string, string, string, string>(
+                        serverAvailability, comp.Ip, "OFFLINE", "OFFLINE", "OFFLINE", "OFFLINE"));
 
                     lowSpaceAndAvailabilityCounter++;
                 }
@@ -165,13 +168,18 @@ namespace FreeSpaceChecker
 
             logger.Log(string.Empty, true);
 
-            if(lowSpaceAndAvailabilityCounter != 0)
+            
+
+            if(sendMail && lowSpaceAndAvailabilityCounter != 0)
             {
                 foreach (Mail mail in mails)
                 {
                     sender.SendEmail(MailComposer(msgBlob), mail.Subject, mail.Email, smtpSettings.smtpServer, smtpSettings.mailFrom);
                 }
             }
+
+            Console.WriteLine("Check completed.");
+            Console.ReadLine();
         }
         /// <summary>
         /// Компоновщик. Создает xml-шаблон с таблицей. Create xml-template for table.

@@ -83,12 +83,15 @@ namespace FreeSpaceChecker.Settings
 
             return comps;
         }
-        public (string smtpServer, string mailFrom) LoadSmtpSettings()
+        public (bool sendEmail, string smtpServer, string mailFrom) LoadSmtpSettings()
         {
             Configuration config = LoadConfig();
             SettingsConfiguration myConfig = config.GetSection("settings") as SettingsConfiguration;
 
-            return (myConfig.Emails.SmtpServer, myConfig.Emails.MailFrom);
+            bool sendEmail = false;
+            bool.TryParse(myConfig.Emails.SendEmail, out sendEmail);
+
+            return (sendEmail, myConfig.Emails.SmtpServer, myConfig.Emails.MailFrom);
         }
         public List<Mail> LoadMailSettings()
         {

@@ -11,7 +11,6 @@ namespace FreeSpaceChecker.Settings
         {
             get { return ((CheckObjectElementCollection)(base["objectsToCheck"])); }
         }
-
         [ConfigurationProperty("emails", IsDefaultCollection = false)]
         public EmailElementCollection Emails
         {
