@@ -61,7 +61,7 @@ namespace FreeSpaceChecker
         {
             var machine = ip;
 
-            var options = new ConnectionOptions { Username = "G600-Administrator", Password = "ncgbg6&U" };
+            var options = new ConnectionOptions { Username = "", Password = "&U" };
 
             var scope = new ManagementScope(@"\\" + machine + @"\root\cimv2", options);
 
