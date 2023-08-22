@@ -89,7 +89,6 @@
     <Compile Include="Settings\Email\EmailElement.cs" />
     <Compile Include="Settings\Email\EmailElementCollection.cs" />
     <Compile Include="Settings\SettingsConfiguration.cs" />
-    <Compile Include="TotalSpaceChecker.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
