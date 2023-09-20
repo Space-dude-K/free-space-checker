@@ -4,6 +4,7 @@ using FreeSpaceChecker.Settings.Email;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.IO;
 
 namespace FreeSpaceChecker.Settings
 {
@@ -116,7 +117,16 @@ namespace FreeSpaceChecker.Settings
             Configuration config = LoadConfig();
             SettingsConfiguration myConfig = config.GetSection("settings") as SettingsConfiguration;
 
-            return myConfig.CheckObjects.Loggerpath;
+            string cfgPath;
+
+            if (!string.IsNullOrEmpty(myConfig.CheckObjects.Loggerpath) && Directory.Exists(myConfig.CheckObjects.Loggerpath))
+                cfgPath = myConfig.CheckObjects.Loggerpath;
+            else
+            {
+                cfgPath = Environment.CurrentDirectory;
+            }
+
+            return cfgPath;
         }
         #endregion
     }

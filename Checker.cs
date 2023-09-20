@@ -70,7 +70,8 @@ namespace FreeSpaceChecker
                         newReq.admPass = encryptor.ToInsecureString(enc.Password);
                         Console.WriteLine("Enc: " + newReq.admLogin + " " + newReq.admPass);
 
-                        conf.SaveAdminSettings((encryptor.ToInsecureString(enc.User), enc.USalt, encryptor.ToInsecureString(enc.Password), enc.PSalt));
+                        conf.SaveAdminSettings((encryptor.ToInsecureString(enc.User), enc.USalt, 
+                            encryptor.ToInsecureString(enc.Password), enc.PSalt));
                     }
 
                     if (Console.ReadKey().Key == ConsoleKey.Enter)
