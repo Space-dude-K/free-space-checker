@@ -84,7 +84,19 @@ namespace FreeSpaceChecker.Settings
 
             return comps;
         }
-        public (bool sendEmail, string smtpServer, string mailFrom) LoadSmtpSettings()
+        public void SaveSmtpReqSettings(string mailLogin, string mailLoginSalt, string mailPassword, string mailPasswordSalt)
+        {
+            Configuration config = LoadConfig();
+            SettingsConfiguration myConfig = config.GetSection("settings") as SettingsConfiguration;
+
+            myConfig.Emails.MailLogin = mailLogin;
+            myConfig.Emails.MailLoginSalt = mailLoginSalt;
+            myConfig.Emails.MailPassword = mailPassword;
+            myConfig.Emails.MailPasswordSalt = mailPasswordSalt;
+
+            myConfig.CurrentConfiguration.Save();
+        }
+        public (bool sendEmail, string smtpServer, string mailFrom, string mailLogin, string mailLoginSalt, string mailPassword, string mailPasswordSalt) LoadSmtpSettings()
         {
             Configuration config = LoadConfig();
             SettingsConfiguration myConfig = config.GetSection("settings") as SettingsConfiguration;
@@ -92,7 +104,8 @@ namespace FreeSpaceChecker.Settings
             bool sendEmail = false;
             bool.TryParse(myConfig.Emails.SendEmail, out sendEmail);
 
-            return (sendEmail, myConfig.Emails.SmtpServer, myConfig.Emails.MailFrom);
+            return (sendEmail, myConfig.Emails.SmtpServer, myConfig.Emails.MailFrom,
+                myConfig.Emails.MailLogin, myConfig.Emails.MailLoginSalt, myConfig.Emails.MailPassword, myConfig.Emails.MailPasswordSalt);
         }
         public List<Mail> LoadMailSettings()
         {

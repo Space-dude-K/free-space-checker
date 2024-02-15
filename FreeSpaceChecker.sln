@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.32510.428
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34525.116
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "gu-free-space-checker", "gu-free-space-checker.csproj", "{177E479C-A2B4-4CC5-B28D-C5053752EB19}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "free-space-checker", "free-space-checker.csproj", "{177E479C-A2B4-4CC5-B28D-C5053752EB19}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

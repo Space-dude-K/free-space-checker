@@ -1,28 +1,64 @@
 ﻿using FreeSpaceChecker.Interfaces;
-using System.Net.Mail;
+using MailKit.Security;
+using MimeKit;
+using MimeKit.Text;
+using System;
 
 namespace FreeSpaceChecker
 {
     class MailSender : IMailSender
     {
         private readonly ILogger logger;
-        public MailSender(ILogger logger)
+        private readonly ICypher cypher;
+
+        public MailSender(ILogger logger, ICypher cypher)
         {
             this.logger = logger;
+            this.cypher = cypher;
         }
-        public void SendEmail(string textMessage, string mailSubject, string mailAddress, string smtpServer, string mailFrom)
+
+        public void SendEmail(string textMessage, string mailSubject, string mailAddress, string smtpServer, string mailFrom, 
+            string mailLogin, string mailLoginSalt, string mailPassword, string mailPasswordSalt)
         {
-            MailMessage message = new MailMessage();
+            // create email message
+            var email = new MimeMessage();
 
-            message.To.Add(mailAddress);
-            message.Subject = mailSubject;
-            message.From = new MailAddress(mailFrom);
-            message.IsBodyHtml = true;
-            message.Body = textMessage;
+            email.From.Add(MailboxAddress.Parse(mailFrom));
+            email.To.Add(MailboxAddress.Parse(mailAddress));
+            email.Subject = mailSubject;
+            //email.Body = new TextPart() { Text = textMessage };
+            email.Body = new TextPart(TextFormat.Html) { Text = textMessage };
 
-            SmtpClient smtp = new SmtpClient(smtpServer);
+            // send email
+            var smtp = new MailKit.Net.Smtp.SmtpClient();
 
-            smtp.Send(message);
+            try
+            {
+                Console.WriteLine($"Connecting to -> {smtpServer}");
+
+                smtp.Connect(smtpServer, 587, SecureSocketOptions.StartTls);
+
+                string mailLoginS = cypher.ToInsecureString(cypher.DecryptString(cypher.ToSecureString(mailLogin), mailLoginSalt));
+                string mailLoginP = cypher.ToInsecureString(cypher.DecryptString(cypher.ToSecureString(mailPassword), mailPasswordSalt));
+
+                smtp.Authenticate(cypher.ToInsecureString(cypher.DecryptString(cypher.ToSecureString(mailLogin), mailLoginSalt)),
+                    cypher.ToInsecureString(cypher.DecryptString(cypher.ToSecureString(mailPassword), mailPasswordSalt)));
+
+                Console.WriteLine($"Sending email to -> {mailAddress}");
+
+                smtp.Send(email);
+            }
+            catch (System.Exception ex)
+            {
+                Console.WriteLine($"Email error!");
+                logger.Log(ex.Message);
+
+            }
+            finally
+            {
+                Console.WriteLine($"Disconnect from -> {smtpServer}");
+                smtp.Disconnect(true);
+            }   
         }
     }
 }

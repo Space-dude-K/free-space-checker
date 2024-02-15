@@ -36,8 +36,6 @@ namespace FreeSpaceChecker
             var dec = cypher.Decrypt(req.User, req.USalt, req.Password, req.PSalt);
             con.Username = cypher.ToInsecureString(dec.User);
             con.Password = cypher.ToInsecureString(dec.Password);
-            //con.Username = "G600-Administrator";
-            //con.Password = "ncgbg6&U";
 
             ManagementScope scope = null;
 
@@ -84,6 +82,10 @@ namespace FreeSpaceChecker
                     }
                 }
             }
+            catch (System.ArgumentException ex)
+            {
+                Console.WriteLine($"Проверьте, что в логине указан домен. {ex.Message}");
+            }
             catch (System.Management.ManagementException ex)
             {
                 Console.WriteLine(ip + " " + diskOrShare + " " + ex.Message);
@@ -91,6 +93,7 @@ namespace FreeSpaceChecker
             catch(Exception ex)
             {
                 logger.Log("Errors with server " + ip + " " + diskOrShare + " Message: " + ex.Message);
+                throw;
             }
  
             return new Tuple<ulong,ulong>(calculatedSpace, calculatedCapacity);

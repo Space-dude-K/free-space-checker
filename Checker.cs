@@ -1,8 +1,11 @@
 ﻿using check_up_money.Cypher;
 using FreeSpaceChecker.Interfaces;
 using FreeSpaceChecker.Settings;
+using Org.BouncyCastle.Ocsp;
+using Org.BouncyCastle.Utilities;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -12,14 +15,20 @@ namespace FreeSpaceChecker
     {
         private string loggerPath;
 
+        Configurator conf;
+
         private ILogger logger;
         ICypher encryptor;
         private IMailSender sender;
         private ISpaceChecker checker;
         private List<Comp> comps;
-        private (bool sendEmail, string smtpServer, string mailFrom) smtpSettings;
+        private (bool sendEmail, string smtpServer, string mailFrom,
+            string mailLogin, string mailLoginSalt, string mailPassword, string mailPasswordSalt) smtpSettings;
         private List<Mail> mails;
+
         RequisiteInformation requisiteInformation;
+        RequisiteInformation mailReqs;
+
         private enum DiskSizeFormatType
         {
             Bytes = 0,
@@ -30,15 +39,15 @@ namespace FreeSpaceChecker
         }
         public Checker()
         {
-            Configurator conf = new Configurator();
+            conf = new Configurator();
 
-            loggerPath = conf.GetLoggerPath() + "FreeSpaceChecker" + "_" + DateTime.Now.Year.ToString() + ".txt";
+            loggerPath = Path.Combine(conf.GetLoggerPath(), "FreeSpaceChecker" + "_" + DateTime.Now.Year.ToString() + ".txt"); 
 
             var req = conf.LoadAdminSettings();
             encryptor = new Encryptor();
             CheckRequisites(req, conf);
             logger = new Logger(loggerPath);
-            sender = new MailSender(logger);
+            sender = new MailSender(logger, encryptor);
             checker = new FreeSpaceChecker();
             comps = conf.LoadCompSettings();
             smtpSettings = conf.LoadSmtpSettings();
@@ -86,18 +95,62 @@ namespace FreeSpaceChecker
                     new RequisiteInformation(encryptor.ToSecureString(req.admLogin), req.loginSalt, encryptor.ToSecureString(req.admPass), req.passSalt);
             }
         }
+        private RequisiteInformation CheckMailRequisites((string mailLogin, string mailLoginSalt, string mailPassword, string mailPasswordSalt) req, Configurator conf)
+        {
+            if (string.IsNullOrEmpty(req.mailLogin) || string.IsNullOrEmpty(req.mailPassword))
+            {
+                Console.WriteLine("Не задан пароль или логин для почты. Введите логин и пароль через пробел: ");
+
+                while (true)
+                {
+                    var loginAdnPass = (Console.ReadLine().Split());
+
+                    if (loginAdnPass.Length != 2 || string.IsNullOrEmpty(loginAdnPass[0]) || string.IsNullOrEmpty(loginAdnPass[1]))
+                    {
+                        Console.WriteLine("Ошибка ввода. Введите логин и пароль для почты через пробел: ");
+                        continue;
+                    }
+                    else
+                    {
+                        (string mailLogin, string mailPassword) newReq = (loginAdnPass[0], loginAdnPass[1]);
+
+                        var enc = encryptor.Encrypt(encryptor.ToSecureString(loginAdnPass[0]), encryptor.ToSecureString(loginAdnPass[1]));
+                        mailReqs = enc;
+
+                        newReq.mailLogin = encryptor.ToInsecureString(enc.User);
+                        newReq.mailPassword = encryptor.ToInsecureString(enc.Password);
+
+                        Console.WriteLine("Enc: " + newReq.mailLogin + " " + newReq.mailPassword);
+
+                        conf.SaveSmtpReqSettings(encryptor.ToInsecureString(enc.User), enc.USalt,
+                            encryptor.ToInsecureString(enc.Password), enc.PSalt);
+                    }
+
+                    if (Console.ReadKey().Key == ConsoleKey.Enter)
+                        break;
+                }
+            }
+            else
+            {
+                Console.WriteLine("Login and password for mail - OK");
+                mailReqs =
+                new RequisiteInformation(encryptor.ToSecureString(req.mailLogin), req.mailLoginSalt, 
+                encryptor.ToSecureString(req.mailPassword), req.mailPasswordSalt);
+            }
+
+            return mailReqs;
+        }
         /// <summary>
         /// Запуск проверки
         /// </summary>
         public void PerfomCheck(bool sendMail = true)
         {
             int lowSpaceAndAvailabilityCounter = 0;
-
             ServerAvailabilityChecker sac = new ServerAvailabilityChecker();
-
             logger.Log("Perfoming daily checking.");
 
-            List<Tuple<bool, string, string, string, string, string>> msgBlob = new List<Tuple<bool, string, string, string, string, string>>();
+            List<Tuple<bool, string, string, string, string, string>> msgBlob = 
+                new List<Tuple<bool, string, string, string, string, string>>();
 
             foreach(Comp comp in comps)
             {
@@ -169,18 +222,23 @@ namespace FreeSpaceChecker
 
             logger.Log(string.Empty, true);
 
-            
-
             if(sendMail && lowSpaceAndAvailabilityCounter != 0)
             {
+                CheckMailRequisites((smtpSettings.mailLogin, smtpSettings.mailLoginSalt, smtpSettings.mailPassword, smtpSettings.mailPasswordSalt), conf);
+
                 foreach (Mail mail in mails)
                 {
-                    sender.SendEmail(MailComposer(msgBlob), mail.Subject, mail.Email, smtpSettings.smtpServer, smtpSettings.mailFrom);
+                    sender.SendEmail(MailComposer(msgBlob), mail.Subject, mail.Email, smtpSettings.smtpServer, smtpSettings.mailFrom,
+                        encryptor.ToInsecureString(mailReqs.User),
+                        mailReqs.USalt,
+                        encryptor.ToInsecureString(mailReqs.Password),
+                        mailReqs.PSalt);
                 }
             }
 
             Console.WriteLine("Check completed.");
-            Console.ReadLine();
+
+            //Console.ReadLine();
         }
         /// <summary>
         /// Компоновщик. Создает xml-шаблон с таблицей. Create xml-template for table.
@@ -220,8 +278,11 @@ namespace FreeSpaceChecker
             }
             
             result.Append("</table>");
-            result.Append("<h2><a href=" + "file:///" + @"\\G600-SRWORK\FreeSpaceChecker\logs\" + System.IO.Path.GetFileName(loggerPath) + ">Log file link</a></h2>");
-            result.Append("<h3><a href=" + "file:///" + @"\\G600-SRWORK\FreeSpaceChecker\FreeSpaceChecker.exe.config" + ">Edit settings</a></h3>");
+            //result.Append("<h2><a href=" + "file:///" + @"\\G600-SRWORK\FreeSpaceChecker\logs\" + System.IO.Path.GetFileName(loggerPath) + ">Log file link</a></h2>");
+            //result.Append("<h3><a href=" + "file:///" + @"\\G600-SRWORK\FreeSpaceChecker\FreeSpaceChecker.exe.config" + ">Edit settings</a></h3>");
+
+            result.Append("<h2><a href=" + "file:///" + loggerPath + ">Log file link</a></h2>");
+            //result.Append("<h3><a href=" + "file:///" + Path.Combine(Path.GetFullPath(loggerPath), "FreeSpaceChecker.exe.config") + ">Edit settings</a></h3>");
 
             return result.ToString();
         }
