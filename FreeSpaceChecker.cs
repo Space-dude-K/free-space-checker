@@ -82,6 +82,10 @@ namespace FreeSpaceChecker
                     }
                 }
             }
+            catch (System.NullReferenceException ex)
+            {
+                Console.WriteLine($"Проверьте, что диск {diskOrShare} существует. {ex.Message}");
+            }
             catch (System.ArgumentException ex)
             {
                 Console.WriteLine($"Проверьте, что в логине указан домен. {ex.Message}");

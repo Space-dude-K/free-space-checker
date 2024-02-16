@@ -20,11 +20,17 @@ namespace FreeSpaceChecker
             {
                 try
                 {
-                    pingReply = ping.Send(serverIpOrDnsName);
+                    pingReply = ping.Send(serverIpOrDnsName, 10000);
                     result = pingReply.Status == IPStatus.Success;
+                }
+                catch (System.Net.NetworkInformation.PingException ex)
+                {
+                    throw;
+                    logger.Log(serverIpOrDnsName + " -> " + ex.Message);
                 }
                 catch (Exception ex)
                 {
+                    throw;
                     logger.Log(serverIpOrDnsName + " -> " + ex.Message);
                 }
             }

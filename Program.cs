@@ -9,8 +9,6 @@ namespace FreeSpaceChecker
         static void Main(string[] args)
         {
             Checker checker = new Checker();
-
-            Console.ReadLine();
         }
     }
 }

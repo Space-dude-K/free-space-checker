@@ -238,7 +238,7 @@ namespace FreeSpaceChecker
 
             Console.WriteLine("Check completed.");
 
-            //Console.ReadLine();
+            Console.ReadLine();
         }
         /// <summary>
         /// Компоновщик. Создает xml-шаблон с таблицей. Create xml-template for table.
